@@ -18,9 +18,9 @@ package controller
 
 import (
 	"context"
-	"github.com/MingZhang-YBPS/aws-inter-az-traffic-analyzer/internal/util"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/smithy-go/ptr"
+	"os"
+	"time"
+	
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -29,15 +29,17 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog/v2"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/smithy-go/ptr"
 
 	reportv1alpha1 "github.com/MingZhang-YBPS/aws-inter-az-traffic-analyzer/api/v1alpha1"
+	"github.com/MingZhang-YBPS/aws-inter-az-traffic-analyzer/internal/util"
 )
 
 // InterAZTrafficReconciler reconciles a InterAZTraffic object

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"os"
 	"time"
 
@@ -13,6 +12,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2"
+
+	"github.com/aws/aws-sdk-go-v2/config"
 
 	"github.com/MingZhang-YBPS/aws-inter-az-traffic-analyzer/internal/util"
 )
@@ -54,7 +55,7 @@ func main() {
 
 	cvsFileName := ""
 	if cvsFileName, err = createPodMetadataCSV(podsInfo); err != nil {
-		klog.Error("Failed to create pod metadata CSV: %v", err)
+		klog.Errorf("Failed to create pod metadata CSV: %v", err)
 		os.Exit(1)
 	}
 
@@ -62,7 +63,7 @@ func main() {
 		util.EKSPodMetadataBucketName,
 		os.Getenv("vpcId")+"/"+cvsFileName,
 		getCSVFilePath(cvsFileName)); err != nil {
-		klog.Error("Failed to upload pod metadata CSV: %v", err)
+		klog.Errorf("Failed to upload pod metadata CSV: %v", err)
 	}
 }
 
