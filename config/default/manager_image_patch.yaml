@@ -1,7 +1,0 @@
-
-- op: add
-  path: /spec/template/spec/containers/0/env/-
-  value:
-    name: MY_POD_IMAGE
-    value: $(IMG)
-
