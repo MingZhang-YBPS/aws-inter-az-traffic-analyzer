@@ -61,10 +61,14 @@ func main() {
 
 	if err = util.UploadFileToS3(ctx, cfg,
 		util.EKSPodMetadataBucketName,
-		os.Getenv("vpcId")+"/"+cvsFileName,
+		getCSVFileS3Key(cvsFileName),
 		getCSVFilePath(cvsFileName)); err != nil {
 		klog.Errorf("Failed to upload pod metadata CSV: %v", err)
 	}
+}
+
+func getCSVFileS3Key(fileName string) string {
+	return os.Getenv("vpcId") + "/" + fileName
 }
 
 func getCSVFilePath(fileName string) string {

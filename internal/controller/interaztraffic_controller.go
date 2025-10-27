@@ -20,7 +20,7 @@ import (
 	"context"
 	"os"
 	"time"
-	
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -133,18 +133,17 @@ func (r *InterAZTrafficReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 }
 
 func (r *InterAZTrafficReconciler) finalize(ctx context.Context) error {
-	// TODO: whether to clean aws resources
-	return r.cleanUpJobs(ctx)
+	return r.cleanUpAWSResources(ctx)
 }
 
-func (r *InterAZTrafficReconciler) cleanUpJobs(ctx context.Context) error {
+func (r *InterAZTrafficReconciler) cleanUpAWSResources(ctx context.Context) error {
 	// TODO
 	return nil
 }
 
 func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context, traffic *reportv1alpha1.InterAZTraffic) error {
 	// TODO
-
+	// each VPC has multiple analyze job, each job associated with a InterAZTraffic instance
 	return nil
 }
 
@@ -157,7 +156,8 @@ func (r *InterAZTrafficReconciler) createOrUpdateJobs(ctx context.Context, traff
 
 func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.Context,
 	traffic *reportv1alpha1.InterAZTraffic) (job string, err error) {
-	resourceName := types.NamespacedName{Name: "pod-meta-data-" + traffic.Spec.VPCId, Namespace: os.Getenv("MY_POD_NAMESPACE")}
+	// each VPC has one single dedicated pod metadata extractor cronjob
+	resourceName := types.NamespacedName{Name: "pod-metadata-" + traffic.Spec.VPCId, Namespace: os.Getenv("MY_POD_NAMESPACE")}
 
 	sa := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{

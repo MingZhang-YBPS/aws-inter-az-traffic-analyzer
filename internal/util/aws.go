@@ -27,7 +27,7 @@ func EnsurePrerequisites(ctx context.Context, cfg aws.Config, vpcId string) erro
 		klog.Error(err)
 		return err
 	}
-	err = ensureResultBucket(ctx, cfg, vpcId)
+	err = ensureAnthenaResultBucket(ctx, cfg, vpcId)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -160,7 +160,7 @@ func ensureS3Bucket(ctx context.Context, s3Client *s3.Client, bucketName string,
 	return nil
 }
 
-func ensureResultBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
+func ensureAnthenaResultBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
 	client := s3.NewFromConfig(cfg)
 	err := ensureS3Bucket(ctx, client, AnthenaResultBucketName, nil)
 	if err != nil {
