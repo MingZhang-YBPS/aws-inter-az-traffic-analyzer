@@ -1,0 +1,9 @@
+apiVersion: report.k8s.aws/v1alpha1
+kind: InterAZTraffic
+metadata:
+  labels:
+    app.kubernetes.io/name: aws-inter-az-traffic-analyzer
+    app.kubernetes.io/managed-by: kustomize
+  name: interaztraffic-sample
+spec:
+  # TODO(user): Add fields here

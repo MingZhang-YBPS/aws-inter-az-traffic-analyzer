@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- report_v1alpha1_interaztraffic.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
