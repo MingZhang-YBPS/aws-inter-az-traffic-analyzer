@@ -157,7 +157,7 @@ func (r *InterAZTrafficReconciler) createOrUpdateJobs(ctx context.Context, traff
 func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.Context,
 	traffic *reportv1alpha1.InterAZTraffic) (job string, err error) {
 	// each VPC has one single dedicated pod metadata extractor cronjob
-	resourceName := types.NamespacedName{Name: "pod-metadata-" + traffic.Spec.VPCId, Namespace: os.Getenv("MY_POD_NAMESPACE")}
+	resourceName := types.NamespacedName{Name: "pod-metadata-" + traffic.Spec.VPCId, Namespace: traffic.Namespace}
 
 	sa := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
