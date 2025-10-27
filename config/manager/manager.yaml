@@ -67,11 +67,6 @@ spec:
         name: manager
         ports: []
         env:
-          - name: MY_POD_IMAGE
-            valueFrom:
-              resourceFieldRef:
-                containerName: manager
-                resource: image
           - name: MY_POD_NAMESPACE
             valueFrom:
               fieldRef:

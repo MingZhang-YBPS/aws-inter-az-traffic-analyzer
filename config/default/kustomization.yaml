@@ -1,12 +1,12 @@
 # Adds namespace to all resources.
-namespace: aws-inter-az-traffic-analyzer-system
+namespace: inter-az-traffic-analyzer-system
 
 # Value of this field is prepended to the
 # names of all resources, e.g. a deployment named
 # "wordpress" becomes "alices-wordpress".
 # Note that it should also match with the prefix (text before '-') of the namespace
 # field above.
-namePrefix: aws-inter-az-traffic-analyzer-
+namePrefix: inter-az-traffic-analyzer-
 
 # Labels to add to all resources and selectors.
 #labels:
@@ -40,6 +40,11 @@ patches:
 - path: manager_metrics_patch.yaml
   target:
     kind: Deployment
+
+- path: manager_image_patch.yaml
+  target:
+    kind: Deployment
+
 
 # Uncomment the patches line if you enable Metrics and CertManager
 # [METRICS-WITH-CERTS] To enable metrics protected with certManager, uncomment the following line.
