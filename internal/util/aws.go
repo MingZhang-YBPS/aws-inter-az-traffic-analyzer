@@ -36,7 +36,9 @@ func EnsurePrerequisites(ctx context.Context, cfg aws.Config, vpcId string) erro
 }
 
 func UploadFileToS3(ctx context.Context, cfg aws.Config, bucket string, object string, localFilePath string) error {
-	client := s3.NewFromConfig(cfg)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.Region = os.Getenv("AWS_REGION")
+	})
 
 	file, err := os.Open(localFilePath)
 	if err != nil {
@@ -161,7 +163,9 @@ func ensureS3Bucket(ctx context.Context, s3Client *s3.Client, bucketName string,
 }
 
 func ensureAnthenaResultBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
-	client := s3.NewFromConfig(cfg)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.Region = os.Getenv("AWS_REGION")
+	})
 	err := ensureS3Bucket(ctx, client, AnthenaResultBucketName, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create s3 bucket %q: %w", AnthenaResultBucketName, err)
@@ -170,7 +174,9 @@ func ensureAnthenaResultBucket(ctx context.Context, cfg aws.Config, vpcId string
 }
 
 func ensurePodMetadataBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
-	client := s3.NewFromConfig(cfg)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.Region = os.Getenv("AWS_REGION")
+	})
 	err := ensureS3Bucket(ctx, client, EKSPodMetadataBucketName, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create s3 bucket %q: %w", EKSPodMetadataBucketName, err)
@@ -195,7 +201,9 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 		return *fl.FlowLogId, nil
 	}
 
-	err = ensureS3Bucket(ctx, s3.NewFromConfig(cfg), VPCFlowLogBucketName, aws.Int32(1))
+	err = ensureS3Bucket(ctx, s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.Region = os.Getenv("AWS_REGION")
+	}), VPCFlowLogBucketName, aws.Int32(1))
 	if err != nil {
 		return "", fmt.Errorf("failed to create s3 bucket %q: %w", VPCFlowLogBucketName, err)
 	}
