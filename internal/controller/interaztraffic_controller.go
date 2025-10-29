@@ -237,7 +237,7 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &cronJob, func() error {
 		cronJob.Spec = batchv1.CronJobSpec{
-			Schedule:          "*/10 * * * *",           // every 10 minutes
+			Schedule:          "*/5 * * * *",            // every 5 minutes
 			ConcurrencyPolicy: batchv1.ForbidConcurrent, // don't run if previous job still running
 			JobTemplate: batchv1.JobTemplateSpec{
 				Spec: batchv1.JobSpec{
