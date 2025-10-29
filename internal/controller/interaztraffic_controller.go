@@ -254,8 +254,9 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 							RestartPolicy: corev1.RestartPolicyNever,
 							Containers: []corev1.Container{
 								{
-									Name:  "extractor",
-									Image: os.Getenv("MY_POD_IMAGE"),
+									Name:            "extractor",
+									Image:           os.Getenv("MY_POD_IMAGE"),
+									ImagePullPolicy: corev1.PullAlways,
 									Env: []corev1.EnvVar{
 										{
 											Name:  "AWS_REGION",
