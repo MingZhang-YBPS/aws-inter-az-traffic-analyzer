@@ -250,11 +250,22 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 					ActiveDeadlineSeconds: ptr.Int64(60), // timeout per job
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
+
 							RestartPolicy: corev1.RestartPolicyNever,
 							Containers: []corev1.Container{
 								{
 									Name:  "extractor",
 									Image: os.Getenv("MY_POD_IMAGE"),
+									Env: []corev1.EnvVar{
+										{
+											Name:  "AWS_REGION",
+											Value: os.Getenv("AWS_REGION"),
+										},
+										{
+											Name:  "VPC_ID",
+											Value: traffic.Spec.VPCId,
+										},
+									},
 								},
 							},
 						},

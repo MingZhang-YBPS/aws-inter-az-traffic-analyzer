@@ -21,7 +21,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
 		klog.Fatalf("failed to load AWS config: %v", err)
 		os.Exit(1)
@@ -68,7 +68,7 @@ func main() {
 }
 
 func getCSVFileS3Key(fileName string) string {
-	return os.Getenv("vpcId") + "/" + fileName
+	return os.Getenv("VPC_ID") + "/" + fileName
 }
 
 func getCSVFilePath(fileName string) string {

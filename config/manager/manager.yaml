@@ -73,6 +73,8 @@ spec:
                 fieldPath: metadata.namespace
           - name: MY_POD_IMAGE
             value: ${IMG}
+          - name: AWS_REGION
+            value: ${AWS_REGION}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

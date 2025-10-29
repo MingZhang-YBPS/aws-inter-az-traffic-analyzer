@@ -213,7 +213,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(os.Getenv("AWS_REGION")))
 	if err != nil {
 		setupLog.Error(err, "failed to load AWS config")
 		os.Exit(1)
