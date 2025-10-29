@@ -195,7 +195,6 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 	existing, err := client.DescribeFlowLogs(ctx, &ec2.DescribeFlowLogsInput{
 		Filter: []ec2types.Filter{
 			{Name: aws.String("resource-id"), Values: []string{vpcId}},
-			{Name: aws.String("resource-type"), Values: []string{"VPC"}},
 		},
 	})
 	if err != nil {
