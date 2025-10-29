@@ -30,8 +30,6 @@ rules:
   - get
   - patch
   - update
-
-
 - apiGroups: ["batch"]
   resources: ["cronjobs"]
   verbs: ["*"]
