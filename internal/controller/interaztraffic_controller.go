@@ -266,6 +266,10 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 											Name:  "VPC_ID",
 											Value: traffic.Spec.VPCId,
 										},
+										{
+											Name:  "MY_ACCOUNT",
+											Value: os.Getenv("MY_ACCOUNT"),
+										},
 									},
 								},
 							},

@@ -1,7 +1,10 @@
 package util
 
-const VPCFlowLogBucketName = "vpc-flow-logs-bucket"
-const EKSPodMetadataBucketName = "pod-state-bucket"
-const AnthenaResultBucketName = "inter-az-traffic-athena-results"
+import "os"
+
+var VPCFlowLogBucketName = "vpc-flow-logs-bucket-" + os.Getenv("MY_ACCOUNT")
+var EKSPodMetadataBucketName = "pod-state-bucket-" + os.Getenv("MY_ACCOUNT")
+var AnthenaResultBucketName = "inter-az-traffic-results" + os.Getenv("MY_ACCOUNT")
+
 const FlowLogsFormat = "${az-id} ${flow-direction} ${pkt-srcaddr} ${pkt-dstaddr} ${start} ${bytes}"
 const NodeAZLabel = "topology.kubernetes.io/zone"

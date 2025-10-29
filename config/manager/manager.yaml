@@ -76,6 +76,8 @@ spec:
             value: ${IMG}
           - name: AWS_REGION
             value: ${AWS_REGION}
+          - name: MY_ACCOUNT
+            value: ${MY_ACCOUNT}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
