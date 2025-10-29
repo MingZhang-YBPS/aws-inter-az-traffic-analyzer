@@ -55,6 +55,11 @@ const finalizer = "report.k8s.aws/finalizer"
 // +kubebuilder:rbac:groups=report.k8s.aws,resources=interaztraffics,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=report.k8s.aws,resources=interaztraffics/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=report.k8s.aws,resources=interaztraffics/finalizers,verbs=update
+// +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=*
+// +kubebuilder:rbac:groups=batch,resources=jobs,verbs=*
+// +kubebuilder:rbac:groups=,resources=serviceaccounts,verbs=*
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=*
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=*
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
