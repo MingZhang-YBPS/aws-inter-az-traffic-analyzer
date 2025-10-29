@@ -57,7 +57,7 @@ const finalizer = "report.k8s.aws/finalizer"
 // +kubebuilder:rbac:groups=report.k8s.aws,resources=interaztraffics/finalizers,verbs=update
 // +kubebuilder:rbac:groups=batch,resources=cronjobs,verbs=*
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=*
-// +kubebuilder:rbac:groups=,resources=serviceaccounts,verbs=*
+// +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=*
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=*
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=*
 
