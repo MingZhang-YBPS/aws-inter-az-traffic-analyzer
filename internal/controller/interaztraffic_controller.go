@@ -166,7 +166,7 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 
 	sa := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      resourceName.Name,
+			Name:      "pod-metadata",
 			Namespace: resourceName.Namespace,
 		},
 	}
@@ -177,15 +177,10 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 		klog.Error(err)
 		return "", err
 	}
-	err = controllerutil.SetControllerReference(traffic, &sa, r.Scheme)
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
 
 	clusterRole := rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: resourceName.Name,
+			Name: "pod-metadata",
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
@@ -250,8 +245,8 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 					ActiveDeadlineSeconds: ptr.Int64(60), // timeout per job
 					Template: corev1.PodTemplateSpec{
 						Spec: corev1.PodSpec{
-
-							RestartPolicy: corev1.RestartPolicyNever,
+							ServiceAccountName: sa.Name,
+							RestartPolicy:      corev1.RestartPolicyNever,
 							Containers: []corev1.Container{
 								{
 									Name:            "extractor",
