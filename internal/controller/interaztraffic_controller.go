@@ -249,6 +249,9 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 							RestartPolicy:      corev1.RestartPolicyNever,
 							Containers: []corev1.Container{
 								{
+									Command: []string{
+										"/extractor",
+									},
 									Name:            "extractor",
 									Image:           os.Getenv("MY_POD_IMAGE"),
 									ImagePullPolicy: corev1.PullAlways,
