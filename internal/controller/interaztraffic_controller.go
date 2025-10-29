@@ -205,7 +205,7 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 
 	binding := rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: resourceName.Name,
+			Name: "pod-metadata",
 		},
 		Subjects: []rbacv1.Subject{
 			{
