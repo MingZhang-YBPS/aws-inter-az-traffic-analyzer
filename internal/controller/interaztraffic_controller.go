@@ -193,6 +193,11 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 				Resources: []string{"pods", "nodes"},
 				Verbs:     []string{"get", "list", "watch"},
 			},
+			{
+				APIGroups: []string{"report.k8s.aws"},
+				Resources: []string{"interaztraffics"},
+				Verbs:     []string{"get", "list", "watch"},
+			},
 		},
 	}
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &clusterRole, func() error {
