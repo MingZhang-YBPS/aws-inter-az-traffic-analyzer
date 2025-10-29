@@ -206,7 +206,7 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 
 	err = ensureS3Bucket(ctx, s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.Region = os.Getenv("AWS_REGION")
-	}), VPCFlowLogBucketName, aws.Int32(1))
+	}), VPCFlowLogBucketName, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to create s3 bucket %q: %w", VPCFlowLogBucketName, err)
 	}

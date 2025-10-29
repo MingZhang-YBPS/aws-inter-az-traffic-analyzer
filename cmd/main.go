@@ -20,6 +20,8 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	"github.com/aws/smithy-go/logging"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 
@@ -213,7 +215,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(os.Getenv("AWS_REGION")))
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion(os.Getenv("AWS_REGION")),
+		config.WithLogger(logging.LoggerFunc(func(classification logging.Classification, format string, v ...interface{}) {
+			// your custom logging
+			log.WithField("process", "analyzer-main").Debug(v...)
+		})))
 	if err != nil {
 		setupLog.Error(err, "failed to load AWS config")
 		os.Exit(1)
