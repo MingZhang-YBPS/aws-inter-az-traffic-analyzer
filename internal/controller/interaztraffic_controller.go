@@ -197,11 +197,6 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 		klog.Error(err)
 		return "", err
 	}
-	err = controllerutil.SetControllerReference(traffic, &clusterRole, r.Scheme)
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
 
 	binding := rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
@@ -223,11 +218,6 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &binding, func() error {
 		return nil
 	})
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
-	err = controllerutil.SetControllerReference(traffic, &binding, r.Scheme)
 	if err != nil {
 		klog.Error(err)
 		return "", err
