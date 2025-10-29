@@ -59,7 +59,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = util.UploadFileToS3(ctx, cfg,
+	if err = util.PutObjectToS3(ctx, cfg,
 		util.EKSPodMetadataBucketName,
 		getCSVFileS3Key(cvsFileName),
 		getCSVFilePath(cvsFileName)); err != nil {

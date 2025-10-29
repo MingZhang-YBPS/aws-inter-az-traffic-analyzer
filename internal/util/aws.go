@@ -35,16 +35,19 @@ func EnsurePrerequisites(ctx context.Context, cfg aws.Config, vpcId string) erro
 	return nil
 }
 
-func UploadFileToS3(ctx context.Context, cfg aws.Config, bucket string, object string, localFilePath string) error {
+func PutObjectToS3(ctx context.Context, cfg aws.Config, bucket string, object string, localFilePath string) error {
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.Region = os.Getenv("AWS_REGION")
 	})
 
-	file, err := os.Open(localFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file, %w", err)
+	var file *os.File = nil
+	if len(localFilePath) > 0 {
+		file, err := os.Open(localFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to open file, %w", err)
+		}
+		defer file.Close()
 	}
-	defer file.Close()
 
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
@@ -52,7 +55,7 @@ func UploadFileToS3(ctx context.Context, cfg aws.Config, bucket string, object s
 		Body:   file,
 	}
 
-	_, err = client.PutObject(ctx, input)
+	_, err := client.PutObject(ctx, input)
 	if err != nil {
 		return fmt.Errorf("failed to upload file, %w", err)
 	}
@@ -211,6 +214,11 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 		return "", fmt.Errorf("failed to create s3 bucket %q: %w", VPCFlowLogBucketName, err)
 	}
 
+	err = PutObjectToS3(ctx, cfg, VPCFlowLogBucketName, vpcId+"/", "")
+	if err != nil {
+		return "", fmt.Errorf("failed to create dir in s3 bucket %q: %w", VPCFlowLogBucketName, err)
+	}
+
 	out, err := client.CreateFlowLogs(ctx, &ec2.CreateFlowLogsInput{
 		ResourceIds:        []string{vpcId},
 		ResourceType:       "VPC",
@@ -228,7 +236,7 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 		return "", fmt.Errorf("failed to create VPC %q flow log: %w", vpcId, err)
 	}
 	if len(out.FlowLogIds) == 0 {
-		return "", fmt.Errorf("no FlowLogId returned after creation %s %s", *out.Unsuccessful[0].Error.Code, *out.Unsuccessful[0].Error.Message)
+		return "", fmt.Errorf("no FlowLogId returned after creation")
 	}
 
 	klog.Infof("Created new flow log for VPC %q: %q", vpcId, out.FlowLogIds[0])
