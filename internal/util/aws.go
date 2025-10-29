@@ -228,7 +228,7 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 		return "", fmt.Errorf("failed to create VPC %q flow log: %w", vpcId, err)
 	}
 	if len(out.FlowLogIds) == 0 {
-		return "", fmt.Errorf("no FlowLogId returned after creation")
+		return "", fmt.Errorf("no FlowLogId returned after creation %x", out.Unsuccessful)
 	}
 
 	klog.Infof("Created new flow log for VPC %q: %q", vpcId, out.FlowLogIds[0])
