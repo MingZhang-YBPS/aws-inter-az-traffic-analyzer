@@ -64,6 +64,7 @@ func main() {
 		getCSVFileS3Key(cvsFileName),
 		getCSVFilePath(cvsFileName)); err != nil {
 		klog.Errorf("Failed to upload pod metadata CSV: %v", err)
+		time.Sleep(1000 * time.Second)
 	}
 }
 
