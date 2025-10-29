@@ -65,75 +65,78 @@ func ensureS3Bucket(ctx context.Context, s3Client *s3.Client, bucketName string,
 	_, err := s3Client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(bucketName),
 	})
-	if err == nil {
-		klog.Infof("Bucket %q already exists.", bucketName)
-		return nil
-	}
-	var notFound *types.NotFound
-	if errors.As(err, &notFound) ||
-		strings.Contains(err.Error(), "NotFound") ||
-		strings.Contains(err.Error(), "404") ||
-		strings.Contains(err.Error(), "NoSuchBucket") {
-	} else {
-		// Some other error (like AccessDenied)
-		return fmt.Errorf("cannot check bucket: %w", err)
-	}
-
-	createInput := &s3.CreateBucketInput{
-		Bucket: aws.String(bucketName),
-	}
-	_, err = s3Client.CreateBucket(ctx, createInput)
 	if err != nil {
-		return fmt.Errorf("failed to create bucket %q: %w", bucketName, err)
-	}
-	if objectExpireDays != nil {
-		_, err = s3Client.PutBucketLifecycleConfiguration(ctx, &s3.PutBucketLifecycleConfigurationInput{
+		var notFound *types.NotFound
+		if errors.As(err, &notFound) ||
+			strings.Contains(err.Error(), "NotFound") ||
+			strings.Contains(err.Error(), "404") ||
+			strings.Contains(err.Error(), "NoSuchBucket") {
+		} else {
+			// Some other error (like AccessDenied)
+			return fmt.Errorf("cannot check bucket: %w", err)
+		}
+
+		createInput := &s3.CreateBucketInput{
 			Bucket: aws.String(bucketName),
-			LifecycleConfiguration: &types.BucketLifecycleConfiguration{
-				Rules: []types.LifecycleRule{
+		}
+		_, err = s3Client.CreateBucket(ctx, createInput)
+		if err != nil {
+			return fmt.Errorf("failed to create bucket %q: %w", bucketName, err)
+		}
+
+		klog.Infof("Created bucket: %q", bucketName)
+	} else {
+		klog.Infof("Bucket %q already exists.", bucketName)
+
+		if objectExpireDays != nil {
+			_, err = s3Client.PutBucketLifecycleConfiguration(ctx, &s3.PutBucketLifecycleConfigurationInput{
+				Bucket: aws.String(bucketName),
+				LifecycleConfiguration: &types.BucketLifecycleConfiguration{
+					Rules: []types.LifecycleRule{
+						{
+							ID:     aws.String("ExpireObjectsAfter1Day"),
+							Status: types.ExpirationStatusEnabled,
+							Expiration: &types.LifecycleExpiration{
+								Days: objectExpireDays,
+							},
+						},
+					},
+				},
+			})
+			if err != nil {
+				return fmt.Errorf("failed to set lifecycle bucket %q: %w", bucketName, err)
+			}
+		}
+		_, err = s3Client.PutBucketEncryption(ctx, &s3.PutBucketEncryptionInput{
+			Bucket: aws.String(bucketName),
+			ServerSideEncryptionConfiguration: &types.ServerSideEncryptionConfiguration{
+				Rules: []types.ServerSideEncryptionRule{
 					{
-						ID:     aws.String("ExpireObjectsAfter1Day"),
-						Status: types.ExpirationStatusEnabled,
-						Expiration: &types.LifecycleExpiration{
-							Days: objectExpireDays,
+						ApplyServerSideEncryptionByDefault: &types.ServerSideEncryptionByDefault{
+							SSEAlgorithm: types.ServerSideEncryptionAes256,
 						},
 					},
 				},
 			},
 		})
 		if err != nil {
-			return fmt.Errorf("failed to set lifecycle bucket %q: %w", bucketName, err)
+			return fmt.Errorf("failed to set encryption bucket %q: %w", bucketName, err)
 		}
-	}
-	_, err = s3Client.PutBucketEncryption(ctx, &s3.PutBucketEncryptionInput{
-		Bucket: aws.String(bucketName),
-		ServerSideEncryptionConfiguration: &types.ServerSideEncryptionConfiguration{
-			Rules: []types.ServerSideEncryptionRule{
-				{
-					ApplyServerSideEncryptionByDefault: &types.ServerSideEncryptionByDefault{
-						SSEAlgorithm: types.ServerSideEncryptionAes256,
-					},
-				},
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to set encryption bucket %q: %w", bucketName, err)
-	}
-	_, err = s3Client.PutPublicAccessBlock(ctx, &s3.PutPublicAccessBlockInput{
-		Bucket: aws.String(bucketName),
-		PublicAccessBlockConfiguration: &types.PublicAccessBlockConfiguration{
-			BlockPublicAcls:       aws.Bool(true),
-			IgnorePublicAcls:      aws.Bool(true),
-			BlockPublicPolicy:     aws.Bool(true),
-			RestrictPublicBuckets: aws.Bool(true),
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to block public access bucket %q: %w", bucketName, err)
-	}
 
-	policy := fmt.Sprintf(`{
+		_, err = s3Client.PutPublicAccessBlock(ctx, &s3.PutPublicAccessBlockInput{
+			Bucket: aws.String(bucketName),
+			PublicAccessBlockConfiguration: &types.PublicAccessBlockConfiguration{
+				BlockPublicAcls:       aws.Bool(true),
+				IgnorePublicAcls:      aws.Bool(true),
+				BlockPublicPolicy:     aws.Bool(true),
+				RestrictPublicBuckets: aws.Bool(true),
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to block public access bucket %q: %w", bucketName, err)
+		}
+
+		policy := fmt.Sprintf(`{
 		"Version": "2012-10-17",
 		"Statement": [{
 			"Sid": "EnforceSSL",
@@ -150,15 +153,15 @@ func ensureS3Bucket(ctx context.Context, s3Client *s3.Client, bucketName string,
 		}]
 	}`, bucketName, bucketName)
 
-	_, err = s3Client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
-		Bucket: aws.String(bucketName),
-		Policy: aws.String(policy),
-	})
-	if err != nil {
-		return fmt.Errorf("failed to enforce ssl bucket %q: %w", bucketName, err)
+		_, err = s3Client.PutBucketPolicy(ctx, &s3.PutBucketPolicyInput{
+			Bucket: aws.String(bucketName),
+			Policy: aws.String(policy),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to enforce ssl bucket %q: %w", bucketName, err)
+		}
 	}
 
-	klog.Infof("Created bucket: %q", bucketName)
 	return nil
 }
 
