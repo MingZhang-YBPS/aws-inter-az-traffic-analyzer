@@ -64,7 +64,6 @@ func main() {
 		getCSVFileS3Key(cvsFileName),
 		getCSVFilePath(cvsFileName)); err != nil {
 		klog.Errorf("Failed to upload pod metadata CSV: %v", err)
-		time.Sleep(1000 * time.Second)
 	}
 }
 
@@ -76,7 +75,7 @@ func getCSVFilePath(fileName string) string {
 	return "/tmp/" + fileName
 }
 
-func createPodMetadataCSV(podsInfo []map[string]string) (string, error) {
+func createPodMetadataCSV(podsInfo [][]string) (string, error) {
 	fileName := fmt.Sprintf("pods_metadata-%s.csv", time.Now().Format("20060102150405"))
 	file, err := os.Create(getCSVFilePath(fileName))
 	if err != nil {
@@ -114,19 +113,20 @@ func getNodeAZMapping(nodes *v1.NodeList) map[string]string {
 	return mapping
 }
 
-func getPodInfo(pods *v1.PodList, nodeAZMapping map[string]string) []map[string]string {
-	podsInfo := make([]map[string]string, 0)
+func getPodInfo(pods *v1.PodList, nodeAZMapping map[string]string) [][]string {
+	var podsInfo [][]string
 	for _, pod := range pods.Items {
 		for _, cond := range pod.Status.Conditions {
 			if cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue {
-				podsInfo = append(podsInfo, map[string]string{
-					"name":          pod.Name,
-					"ip":            pod.Status.PodIP,
-					"app":           util.GetPodAppName(&pod),
-					"creation_time": pod.CreationTimestamp.Format(time.RFC3339),
-					"node":          pod.Spec.NodeName,
-					"az":            nodeAZMapping[pod.Spec.NodeName],
-				})
+				podInfo := []string{
+					pod.Name,
+					pod.Status.PodIP,
+					util.GetPodAppName(&pod),
+					pod.CreationTimestamp.Format(time.RFC3339),
+					pod.Spec.NodeName,
+					nodeAZMapping[pod.Spec.NodeName],
+				}
+				podsInfo = append(podsInfo, podInfo)
 			}
 		}
 	}
