@@ -35,7 +35,25 @@ func EnsurePrerequisites(ctx context.Context, cfg aws.Config, vpcId string) erro
 	return nil
 }
 
-func PutObjectToS3(ctx context.Context, cfg aws.Config, bucket string, object string, localFilePath string) error {
+func PutDirInS3Bucket(ctx context.Context, cfg aws.Config, bucket string, key string) error {
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.Region = os.Getenv("AWS_REGION")
+	})
+
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}
+	_, err := client.PutObject(ctx, input)
+	if err != nil {
+		return fmt.Errorf("failed to create dir, %w", err)
+	}
+
+	klog.Infof("Successfully created dir %q in bucket %q", key, bucket)
+	return nil
+}
+
+func PutCSVToS3(ctx context.Context, cfg aws.Config, bucket string, key string, localFilePath string) error {
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.Region = os.Getenv("AWS_REGION")
 	})
@@ -50,9 +68,10 @@ func PutObjectToS3(ctx context.Context, cfg aws.Config, bucket string, object st
 	}
 
 	input := &s3.PutObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(object),
-		Body:   file,
+		Bucket:      aws.String(bucket),
+		Key:         aws.String(key),
+		Body:        file,
+		ContentType: aws.String("text/csv"), // 指定文件类型
 	}
 
 	_, err := client.PutObject(ctx, input)
@@ -60,7 +79,7 @@ func PutObjectToS3(ctx context.Context, cfg aws.Config, bucket string, object st
 		return fmt.Errorf("failed to upload file, %w", err)
 	}
 
-	klog.Infof("Successfully uploaded %q to bucket %q", object, bucket)
+	klog.Infof("Successfully uploaded %q to bucket %q", key, bucket)
 	return nil
 }
 
@@ -213,7 +232,7 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 		return "", fmt.Errorf("failed to create s3 bucket %q: %w", VPCFlowLogBucketName, err)
 	}
 
-	err = PutObjectToS3(ctx, cfg, VPCFlowLogBucketName, vpcId+"/", "")
+	err = PutDirInS3Bucket(ctx, cfg, VPCFlowLogBucketName, vpcId+"/", "")
 	if err != nil {
 		return "", fmt.Errorf("failed to create dir in s3 bucket %q: %w", VPCFlowLogBucketName, err)
 	}
