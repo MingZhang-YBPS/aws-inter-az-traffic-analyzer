@@ -232,7 +232,7 @@ func ensureVPCFlowLog(ctx context.Context, cfg aws.Config, vpcId string) (string
 		return "", fmt.Errorf("failed to create s3 bucket %q: %w", VPCFlowLogBucketName, err)
 	}
 
-	err = PutDirInS3Bucket(ctx, cfg, VPCFlowLogBucketName, vpcId+"/", "")
+	err = PutDirInS3Bucket(ctx, cfg, VPCFlowLogBucketName, vpcId+"/")
 	if err != nil {
 		return "", fmt.Errorf("failed to create dir in s3 bucket %q: %w", VPCFlowLogBucketName, err)
 	}
