@@ -268,6 +268,10 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 											Name:  "MY_ACCOUNT",
 											Value: os.Getenv("MY_ACCOUNT"),
 										},
+										{
+											Name:  "CLUSTER",
+											Value: os.Getenv("CLUSTER"),
+										},
 									},
 								},
 							},

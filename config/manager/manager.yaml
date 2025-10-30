@@ -78,6 +78,8 @@ spec:
             value: ${AWS_REGION}
           - name: MY_ACCOUNT
             value: ${MY_ACCOUNT}
+          - name: CLUSTER
+            value: ${CLUSTER}
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:

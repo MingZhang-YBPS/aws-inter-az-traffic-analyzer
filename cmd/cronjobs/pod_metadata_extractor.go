@@ -76,7 +76,7 @@ func main() {
 }
 
 func getCSVFileS3Key(fileName string) string {
-	return os.Getenv("VPC_ID") + "/" + fileName
+	return os.Getenv("CLUSTER") + "/" + fileName
 }
 
 func getCSVFilePath(fileName string) string {
