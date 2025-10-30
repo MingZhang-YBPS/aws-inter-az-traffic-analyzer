@@ -94,7 +94,7 @@ func createPodMetadataCSV(podsInfo [][]string) (string, error) {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	header := []string{"name", "ip", "app", "creation_time", "node", "az"}
+	header := []string{"uid", "name", "ip", "app", "creation_time", "node", "az"}
 	if err = writer.Write(header); err != nil {
 		return "", err
 	}
@@ -127,6 +127,7 @@ func getPodInfo(pods *v1.PodList, nodeAZMapping map[string]string) [][]string {
 		for _, cond := range pod.Status.Conditions {
 			if cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue {
 				podInfo := []string{
+					string(pod.UID),
 					pod.Name,
 					pod.Status.PodIP,
 					util.GetPodAppName(&pod),
