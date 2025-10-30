@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
+	"github.com/aws/smithy-go/logging"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"time"
 
@@ -21,7 +23,13 @@ import (
 func main() {
 	ctx := context.Background()
 
-	cfg, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(os.Getenv("AWS_REGION")))
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion(os.Getenv("AWS_REGION")),
+		config.WithLogger(logging.LoggerFunc(func(classification logging.Classification, format string, v ...interface{}) {
+			// your custom logging
+			log.WithField("process", "extractor-main").Debug(v...)
+		})),
+	)
 	if err != nil {
 		klog.Fatalf("failed to load AWS config: %v", err)
 		os.Exit(1)

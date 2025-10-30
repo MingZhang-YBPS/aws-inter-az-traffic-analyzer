@@ -58,14 +58,11 @@ func PutCSVToS3(ctx context.Context, cfg aws.Config, bucket string, key string, 
 		o.Region = os.Getenv("AWS_REGION")
 	})
 
-	var file *os.File = nil
-	if len(localFilePath) > 0 {
-		file, err := os.Open(localFilePath)
-		if err != nil {
-			return fmt.Errorf("failed to open file, %w", err)
-		}
-		defer file.Close()
+	file, err := os.Open(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to open file, %w", err)
 	}
+	defer file.Close()
 
 	input := &s3.PutObjectInput{
 		Bucket:      aws.String(bucket),
@@ -73,8 +70,7 @@ func PutCSVToS3(ctx context.Context, cfg aws.Config, bucket string, key string, 
 		Body:        file,
 		ContentType: aws.String("text/csv"), // 指定文件类型
 	}
-
-	_, err := client.PutObject(ctx, input)
+	_, err = client.PutObject(ctx, input)
 	if err != nil {
 		return fmt.Errorf("failed to upload file, %w", err)
 	}
