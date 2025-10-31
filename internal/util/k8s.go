@@ -13,7 +13,7 @@ func GetPodAppName(pod *v1.Pod) string {
 		}
 	}
 
-	return pod.Name
+	return "<none>"
 }
 
 func GetNodeAZ(node *v1.Node) string {
