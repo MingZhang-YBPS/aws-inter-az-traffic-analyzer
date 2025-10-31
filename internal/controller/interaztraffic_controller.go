@@ -213,14 +213,6 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 									Value: traffic.Spec.VPCId,
 								},
 								{
-									Name:  "START_FROM",
-									Value: traffic.Spec.StartFrom.Format(time.RFC3339),
-								},
-								{
-									Name:  "END_TO",
-									Value: traffic.Spec.EndTo.Format(time.RFC3339),
-								},
-								{
 									Name:  "MY_ACCOUNT",
 									Value: os.Getenv("MY_ACCOUNT"),
 								},
@@ -233,6 +225,18 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 					},
 				},
 			},
+		}
+		if traffic.Spec.StartFrom != nil {
+			job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+				Name:  "START_FROM",
+				Value: traffic.Spec.StartFrom.Format(time.RFC3339),
+			})
+		}
+		if traffic.Spec.EndTo != nil {
+			job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+				Name:  "END_TO",
+				Value: traffic.Spec.EndTo.Format(time.RFC3339),
+			})
 		}
 		return nil
 	})

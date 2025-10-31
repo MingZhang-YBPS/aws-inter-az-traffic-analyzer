@@ -30,7 +30,7 @@ type InterAZTrafficSpec struct {
 
 	//+optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.startFrom is immutable"
-	StartFrom metav1.Time `json:"startFrom,omitempty"`
+	StartFrom *metav1.Time `json:"startFrom,omitempty"`
 	//+optional
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.endTo is immutable"
 	EndTo *metav1.Time `json:"endTo,omitempty"`
