@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/athena/types"
+
 	"github.com/aws/smithy-go/logging"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/klog/v2"
@@ -13,6 +15,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/athena"
+	"github.com/aws/aws-sdk-go-v2/service/glue"
+	gluetypes "github.com/aws/aws-sdk-go-v2/service/glue/types"
 
 	"github.com/MingZhang-YBPS/aws-inter-az-traffic-analyzer/internal/util"
 )
@@ -31,47 +35,110 @@ func main() {
 		klog.Fatalf("failed to load AWS config: %v", err)
 	}
 
-	client := athena.NewFromConfig(cfg)
-	outputLocation := "s3://" + util.AthenaResultBucketName
+	// athenaClient := athena.NewFromConfig(cfg)
+	glueClient := glue.NewFromConfig(cfg)
+	//outputLocation := "s3://" + util.AthenaResultBucketName
 	database := os.Getenv("JOB_NAME")
+	podMetaTable := "podmeta"
+	flowTable := "flow"
 
-	createDB := fmt.Sprintf(`CREATE DATABASE IF NOT EXISTS %s`, database)
-	runQuery(ctx, client, createDB, outputLocation)
+	_, err = glueClient.CreateDatabase(ctx, &glue.CreateDatabaseInput{
+		DatabaseInput: &gluetypes.DatabaseInput{
+			Name: aws.String(database),
+		},
+	})
+	if err != nil {
+		var exists *gluetypes.AlreadyExistsException
+		if errors.As(err, &exists) {
+			klog.Infof("Database %s already exists — safe to ignore.", database)
+		} else {
+			klog.Fatal(err)
+		}
+	} else {
+		klog.Infof("Database %s created successfully.", database)
+	}
 
-	createTable := fmt.Sprintf(`
-CREATE EXTERNAL TABLE IF NOT EXISTS %s.podmeta (
-  uid STRING,
-  name STRING,
-  ip STRING,
-  app STRING,
-  creation_time STRING,
-  node STRING,
-  az STRING
-)
-ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
-WITH SERDEPROPERTIES (
-  'field.delim' = ','
-)
-STORED AS TEXTFILE
-LOCATION 's3://%s/%s/';
+	_, err = glueClient.CreateTable(ctx, &glue.CreateTableInput{
+		DatabaseName: aws.String(database),
+		TableInput: &gluetypes.TableInput{
+			Name: aws.String(podMetaTable),
+			StorageDescriptor: &gluetypes.StorageDescriptor{
+				Columns: []gluetypes.Column{
+					{Name: aws.String("uid"), Type: aws.String("string")},
+					{Name: aws.String("name"), Type: aws.String("string")},
+					{Name: aws.String("ip"), Type: aws.String("string")},
+					{Name: aws.String("app"), Type: aws.String("string")},
+					{Name: aws.String("creation_time"), Type: aws.String("string")},
+					{Name: aws.String("node"), Type: aws.String("string")},
+					{Name: aws.String("az"), Type: aws.String("string")},
+				},
+				Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.AthenaResultBucketName, os.Getenv("CLUSTER"))),
+				InputFormat:  aws.String("org.apache.hadoop.mapred.TextInputFormat"),
+				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"),
+				SerdeInfo: &gluetypes.SerDeInfo{
+					SerializationLibrary: aws.String("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"),
+					Parameters: map[string]string{
+						"field.delim":            ",", // CSV 分隔符
+						"skip.header.line.count": "1", // 跳过第一行表头（可选）
+					},
+				},
+			},
+			TableType: aws.String("EXTERNAL_TABLE"),
+			Parameters: map[string]string{
+				"classification":  "csv",
+				"compressionType": "none",
+				"typeOfData":      "file",
+			},
+		},
+	})
+	if err != nil {
+		var exists *gluetypes.AlreadyExistsException
+		if errors.As(err, &exists) {
+			klog.Infof("Table %s already exists.", podMetaTable)
+		} else {
+			klog.Fatal(err)
+		}
+	} else {
+		klog.Infof("Table %s created.", podMetaTable)
+	}
 
-CREATE EXTERNAL TABLE IF NOT EXISTS %s.flow (
-  az_id STRING,
-  flow_direction STRING,
-  pkt_srcaddr STRING,
-  pkt_dstaddr STRING,
-  start BIGINT,
-  bytes BIGINT
-)
-STORED AS INPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
-OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
-LOCATION 's3://%s/%s/';
-
-
-	`,
-		database, util.AthenaResultBucketName, os.Getenv("CLUSTER"),
-		database, util.VPCFlowLogBucketName, os.Getenv("VPC_ID"))
-	runQuery(ctx, client, createTable, outputLocation)
+	_, err = glueClient.CreateTable(ctx, &glue.CreateTableInput{
+		DatabaseName: aws.String(database),
+		TableInput: &gluetypes.TableInput{
+			Name: aws.String(flowTable),
+			StorageDescriptor: &gluetypes.StorageDescriptor{
+				Columns: []gluetypes.Column{
+					{Name: aws.String("az_id"), Type: aws.String("string")},
+					{Name: aws.String("flow_direction"), Type: aws.String("string")},
+					{Name: aws.String("pkt_srcaddr"), Type: aws.String("string")},
+					{Name: aws.String("pkt_dstaddr"), Type: aws.String("string")},
+					{Name: aws.String("start"), Type: aws.String("bigint")},
+					{Name: aws.String("bytes"), Type: aws.String("bigint")},
+				},
+				Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.VPCFlowLogBucketName, os.Getenv("VPC_ID"))),
+				InputFormat:  aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
+				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
+				SerdeInfo: &gluetypes.SerDeInfo{
+					SerializationLibrary: aws.String("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"),
+				},
+			},
+			TableType: aws.String("EXTERNAL_TABLE"),
+			Parameters: map[string]string{
+				"classification": "parquet",
+				"typeOfData":     "file",
+			},
+		},
+	})
+	if err != nil {
+		var exists *gluetypes.AlreadyExistsException
+		if errors.As(err, &exists) {
+			klog.Infof("Table %s already exists.", flowTable)
+		} else {
+			klog.Fatal(err)
+		}
+	} else {
+		klog.Infof("Table %s created.", flowTable)
+	}
 
 }
 
