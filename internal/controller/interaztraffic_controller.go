@@ -146,12 +146,6 @@ func (r *InterAZTrafficReconciler) cleanUpAWSResources(ctx context.Context) erro
 	return nil
 }
 
-func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context, traffic *reportv1alpha1.InterAZTraffic) error {
-	// TODO
-	// each VPC has multiple analyze job, each job associated with a InterAZTraffic instance
-	return nil
-}
-
 func (r *InterAZTrafficReconciler) createOrUpdateJobs(ctx context.Context, traffic *reportv1alpha1.InterAZTraffic) error {
 	if _, err := r.createOrUpdatePodMetadataCronjob(ctx, traffic); err != nil {
 		return err
@@ -159,10 +153,16 @@ func (r *InterAZTrafficReconciler) createOrUpdateJobs(ctx context.Context, traff
 	return r.createOrUpdateAnalyzeJob(ctx, traffic)
 }
 
+func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context, traffic *reportv1alpha1.InterAZTraffic) error {
+	// TODO
+	// each VPC has multiple analyze job, each job associated with a InterAZTraffic instance
+	return nil
+}
+
 func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.Context,
 	traffic *reportv1alpha1.InterAZTraffic) (job string, err error) {
 	// each VPC has one single dedicated pod metadata extractor cronjob
-	resourceName := types.NamespacedName{Name: "pod-metadata-" + traffic.Spec.VPCId, Namespace: traffic.Namespace}
+	resourceName := types.NamespacedName{Name: "pod-metadata-" + os.Getenv("CLUSTER"), Namespace: traffic.Namespace}
 
 	sa := corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
