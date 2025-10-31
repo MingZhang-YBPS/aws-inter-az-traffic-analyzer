@@ -42,14 +42,23 @@ spec:
               endTo:
                 format: date-time
                 type: string
+                x-kubernetes-validations:
+                - message: spec.endTo is immutable
+                  rule: self == oldSelf
               startFrom:
                 format: date-time
                 type: string
+                x-kubernetes-validations:
+                  - message: spec.endTo is immutable
+                    rule: self == oldSelf
               vpcId:
                 description: |-
                   VPCId is the vpc id where this EKS cluster exists
                   Currently, I don't find anyway to retrieve vpc ID from EKS pod, so have to pass it from outside
                 type: string
+                x-kubernetes-validations:
+                  - message: spec.endTo is immutable
+                    rule: self == oldSelf
             required:
             - vpcId
             type: object
