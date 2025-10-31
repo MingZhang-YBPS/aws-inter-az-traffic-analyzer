@@ -23,8 +23,11 @@ COPY internal/ internal/
 # by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o manager cmd/main.go
 
-COPY cmd/cronjobs/pod_metadata_extractor.go cmd/cronjobs/pod_metadata_extractor.go
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o extractor cmd/cronjobs/pod_metadata_extractor.go
+COPY cmd/jobs/pod_metadata_extractor.go cmd/jobs/pod_metadata_extractor.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o extractor cmd/jobs/pod_metadata_extractor.go
+
+COPY cmd/jobs/athena_analyzer.go cmd/jobs/athena_analyzer.go
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o analyzer cmd/jobs/athena_analyzer.go
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
@@ -32,6 +35,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2023
 WORKDIR /
 COPY --from=builder /workspace/manager .
 COPY --from=builder /workspace/extractor .
+COPY --from=builder /workspace/analyzer .
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

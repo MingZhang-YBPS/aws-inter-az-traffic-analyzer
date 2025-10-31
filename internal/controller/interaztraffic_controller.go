@@ -150,18 +150,97 @@ func (r *InterAZTrafficReconciler) createOrUpdateJobs(ctx context.Context, traff
 	if _, err := r.createOrUpdatePodMetadataCronjob(ctx, traffic); err != nil {
 		return err
 	}
-	return r.createOrUpdateAnalyzeJob(ctx, traffic)
-}
-
-func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context, traffic *reportv1alpha1.InterAZTraffic) error {
-	// TODO
-	// each VPC has multiple analyze job, each job associated with a InterAZTraffic instance
+	if _, err := r.createOrUpdateAnalyzeJob(ctx, traffic); err != nil {
+		return err
+	}
 	return nil
 }
 
+func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
+	traffic *reportv1alpha1.InterAZTraffic) (jobName string, err error) {
+
+	// each VPC can have multiple analyzer job, each job associated with a InterAZTraffic instance
+	resourceName := types.NamespacedName{Name: traffic.Name, Namespace: traffic.Namespace}
+
+	sa := corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "analyzer",
+			Namespace: resourceName.Namespace,
+		},
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &sa, func() error {
+		return nil
+	})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	job := batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName.Name,
+			Namespace: resourceName.Namespace,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &job, func() error {
+		job.Spec = batchv1.JobSpec{
+			BackoffLimit:          ptr.Int32(3),
+			ActiveDeadlineSeconds: ptr.Int64(60 * 60), // timeout per job
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: sa.Name,
+					RestartPolicy:      corev1.RestartPolicyNever,
+					Containers: []corev1.Container{
+						{
+							Command: []string{
+								"/analyzer",
+							},
+							Name:            "analyzer",
+							Image:           os.Getenv("MY_POD_IMAGE"),
+							ImagePullPolicy: corev1.PullAlways,
+							Env: []corev1.EnvVar{
+								{
+									Name:  "AWS_REGION",
+									Value: os.Getenv("AWS_REGION"),
+								},
+								{
+									Name:  "VPC_ID",
+									Value: traffic.Spec.VPCId,
+								},
+								{
+									Name:  "MY_ACCOUNT",
+									Value: os.Getenv("MY_ACCOUNT"),
+								},
+								{
+									Name:  "CLUSTER",
+									Value: os.Getenv("CLUSTER"),
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		return nil
+	})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	err = controllerutil.SetOwnerReference(traffic, &job, r.Scheme)
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	return resourceName.Name, err
+}
+
 func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.Context,
-	traffic *reportv1alpha1.InterAZTraffic) (job string, err error) {
-	// each VPC has one single dedicated pod metadata extractor cronjob
+	traffic *reportv1alpha1.InterAZTraffic) (jobName string, err error) {
+	// each EKS has one single dedicated pod metadata extractor cronjob
 	resourceName := types.NamespacedName{Name: "pod-metadata-" + os.Getenv("CLUSTER"), Namespace: traffic.Namespace}
 
 	sa := corev1.ServiceAccount{
@@ -282,11 +361,6 @@ func (r *InterAZTrafficReconciler) createOrUpdatePodMetadataCronjob(ctx context.
 		}
 		return nil
 	})
-	if err != nil {
-		klog.Error(err)
-		return "", err
-	}
-	err = controllerutil.SetControllerReference(traffic, &cronJob, r.Scheme)
 	if err != nil {
 		klog.Error(err)
 		return "", err
