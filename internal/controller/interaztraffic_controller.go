@@ -205,8 +205,20 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 									Value: os.Getenv("AWS_REGION"),
 								},
 								{
+									Name:  "JOB_NAME",
+									Value: resourceName.Name,
+								},
+								{
 									Name:  "VPC_ID",
 									Value: traffic.Spec.VPCId,
+								},
+								{
+									Name:  "START_FROM",
+									Value: traffic.Spec.StartFrom.Format(time.RFC3339),
+								},
+								{
+									Name:  "END_TO",
+									Value: traffic.Spec.EndTo.Format(time.RFC3339),
 								},
 								{
 									Name:  "MY_ACCOUNT",

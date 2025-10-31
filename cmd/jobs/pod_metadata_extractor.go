@@ -32,39 +32,33 @@ func main() {
 	)
 	if err != nil {
 		klog.Fatalf("failed to load AWS config: %v", err)
-		os.Exit(1)
 	}
 
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatalf("Error loading in-cluster config: %v", err)
-		os.Exit(1)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		klog.Fatalf("Failed to create clientset: %v", err)
-		os.Exit(1)
 	}
 
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		klog.Fatalf("Failed to list nodes: %v", err)
-		os.Exit(1)
 	}
 
 	pods, err := clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		klog.Fatalf("Failed to list pods: %v", err)
-		os.Exit(1)
 	}
 
 	podsInfo := getPodInfo(pods, getNodeAZMapping(nodes))
 
 	cvsFileName := ""
 	if cvsFileName, err = createPodMetadataCSV(podsInfo); err != nil {
-		klog.Errorf("Failed to create pod metadata CSV: %v", err)
-		os.Exit(1)
+		klog.Fatalf("Failed to create pod metadata CSV: %v", err)
 	}
 
 	if err = util.PutCSVToS3(ctx, cfg,
