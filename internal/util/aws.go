@@ -27,7 +27,7 @@ func EnsurePrerequisites(ctx context.Context, cfg aws.Config, vpcId string) erro
 		klog.Error(err)
 		return err
 	}
-	err = ensureAnthenaResultBucket(ctx, cfg, vpcId)
+	err = ensureAthenaResultBucket(ctx, cfg, vpcId)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -183,13 +183,13 @@ func ensureS3Bucket(ctx context.Context, s3Client *s3.Client, bucketName string,
 	return nil
 }
 
-func ensureAnthenaResultBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
+func ensureAthenaResultBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.Region = os.Getenv("AWS_REGION")
 	})
-	err := ensureS3Bucket(ctx, client, AnthenaResultBucketName, nil)
+	err := ensureS3Bucket(ctx, client, AthenaResultBucketName, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create s3 bucket %q: %w", AnthenaResultBucketName, err)
+		return fmt.Errorf("failed to create s3 bucket %q: %w", AthenaResultBucketName, err)
 	}
 	return nil
 }
