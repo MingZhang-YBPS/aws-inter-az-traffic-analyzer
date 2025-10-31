@@ -29,12 +29,15 @@ type InterAZTrafficSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	//+optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.startFrom is immutable"
 	StartFrom metav1.Time `json:"startFrom,omitempty"`
 	//+optional
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.endTo is immutable"
 	EndTo *metav1.Time `json:"endTo,omitempty"`
 
 	// VPCId is the vpc id where this EKS cluster exists
 	// Currently, I don't find anyway to retrieve vpc ID from EKS pod, so have to pass it from outside
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="spec.vpcId is immutable"
 	VPCId string `json:"vpcId"`
 }
 
@@ -75,4 +78,3 @@ type InterAZTrafficList struct {
 func init() {
 	SchemeBuilder.Register(&InterAZTraffic{}, &InterAZTrafficList{})
 }
-

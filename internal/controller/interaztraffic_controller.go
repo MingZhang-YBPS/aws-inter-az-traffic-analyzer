@@ -300,6 +300,6 @@ func (r *InterAZTrafficReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&reportv1alpha1.InterAZTraffic{}).
 		Named("interaztraffic").
-		WithEventFilter(predicate.GenerationChangedPredicate{}). // TODO: no update allowed
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		Complete(r)
 }
