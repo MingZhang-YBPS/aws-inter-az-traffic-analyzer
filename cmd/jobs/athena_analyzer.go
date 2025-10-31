@@ -41,6 +41,7 @@ func main() {
 	database := os.Getenv("JOB_NAME")
 	podMetaTable := "podmeta"
 	flowTable := "flow"
+	resultTable := "result"
 
 	_, err = glueClient.CreateDatabase(ctx, &glue.CreateDatabaseInput{
 		DatabaseInput: &gluetypes.DatabaseInput{
@@ -140,6 +141,40 @@ func main() {
 		klog.Infof("Table %s created.", flowTable)
 	}
 
+	_, err = glueClient.CreateTable(ctx, &glue.CreateTableInput{
+		DatabaseName: aws.String(database),
+		TableInput: &gluetypes.TableInput{
+			Name: aws.String(resultTable),
+			StorageDescriptor: &gluetypes.StorageDescriptor{
+				Columns: []gluetypes.Column{
+					{Name: aws.String("timestamp"), Type: aws.String("timestamp")},
+					{Name: aws.String("cross_az_traffic"), Type: aws.String("string")},
+					{Name: aws.String("bytes_transfered"), Type: aws.String("bigint")},
+				},
+				Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.AthenaResultBucketName, os.Getenv("JOB_NAME"))),
+				InputFormat:  aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
+				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
+				SerdeInfo: &gluetypes.SerDeInfo{
+					SerializationLibrary: aws.String("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"),
+				},
+			},
+			TableType: aws.String("EXTERNAL_TABLE"),
+			Parameters: map[string]string{
+				"classification": "parquet",
+				"typeOfData":     "file",
+			},
+		},
+	})
+	if err != nil {
+		var exists *gluetypes.AlreadyExistsException
+		if errors.As(err, &exists) {
+			klog.Infof("Table %s already exists.", resultTable)
+		} else {
+			klog.Fatal(err)
+		}
+	} else {
+		klog.Infof("Table %s created.", resultTable)
+	}
 }
 
 func runQuery(ctx context.Context, client *athena.Client, query string, outputLocation string) string {

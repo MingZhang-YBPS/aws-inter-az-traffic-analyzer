@@ -183,60 +183,62 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 		},
 	}
 
-	_, err = controllerutil.CreateOrPatch(ctx, r.Client, &job, func() error {
-		job.Spec = batchv1.JobSpec{
-			BackoffLimit:          ptr.Int32(3),
-			ActiveDeadlineSeconds: ptr.Int64(60 * 60), // timeout per job
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					ServiceAccountName: sa.Name,
-					RestartPolicy:      corev1.RestartPolicyNever,
-					Containers: []corev1.Container{
-						{
-							Command: []string{
-								"/analyzer",
-							},
-							Name:            "analyzer",
-							Image:           os.Getenv("MY_POD_IMAGE"),
-							ImagePullPolicy: corev1.PullAlways,
-							Env: []corev1.EnvVar{
-								{
-									Name:  "AWS_REGION",
-									Value: os.Getenv("AWS_REGION"),
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &job, func() error {
+		if job.CreationTimestamp.IsZero() {
+			job.Spec = batchv1.JobSpec{
+				BackoffLimit:          ptr.Int32(3),
+				ActiveDeadlineSeconds: ptr.Int64(60 * 60), // timeout per job
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						ServiceAccountName: sa.Name,
+						RestartPolicy:      corev1.RestartPolicyNever,
+						Containers: []corev1.Container{
+							{
+								Command: []string{
+									"/analyzer",
 								},
-								{
-									Name:  "JOB_NAME",
-									Value: resourceName.Name,
-								},
-								{
-									Name:  "VPC_ID",
-									Value: traffic.Spec.VPCId,
-								},
-								{
-									Name:  "MY_ACCOUNT",
-									Value: os.Getenv("MY_ACCOUNT"),
-								},
-								{
-									Name:  "CLUSTER",
-									Value: os.Getenv("CLUSTER"),
+								Name:            "analyzer",
+								Image:           os.Getenv("MY_POD_IMAGE"),
+								ImagePullPolicy: corev1.PullAlways,
+								Env: []corev1.EnvVar{
+									{
+										Name:  "AWS_REGION",
+										Value: os.Getenv("AWS_REGION"),
+									},
+									{
+										Name:  "JOB_NAME",
+										Value: resourceName.Name,
+									},
+									{
+										Name:  "VPC_ID",
+										Value: traffic.Spec.VPCId,
+									},
+									{
+										Name:  "MY_ACCOUNT",
+										Value: os.Getenv("MY_ACCOUNT"),
+									},
+									{
+										Name:  "CLUSTER",
+										Value: os.Getenv("CLUSTER"),
+									},
 								},
 							},
 						},
 					},
 				},
-			},
-		}
-		if traffic.Spec.StartFrom != nil {
-			job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
-				Name:  "START_FROM",
-				Value: traffic.Spec.StartFrom.Format(time.RFC3339),
-			})
-		}
-		if traffic.Spec.EndTo != nil {
-			job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
-				Name:  "END_TO",
-				Value: traffic.Spec.EndTo.Format(time.RFC3339),
-			})
+			}
+			if traffic.Spec.StartFrom != nil {
+				job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+					Name:  "START_FROM",
+					Value: traffic.Spec.StartFrom.Format(time.RFC3339),
+				})
+			}
+			if traffic.Spec.EndTo != nil {
+				job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+					Name:  "END_TO",
+					Value: traffic.Spec.EndTo.Format(time.RFC3339),
+				})
+			}
 		}
 		return nil
 	})
