@@ -72,7 +72,7 @@ func main() {
 					{Name: aws.String("node"), Type: aws.String("string")},
 					{Name: aws.String("az"), Type: aws.String("string")},
 				},
-				Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.AthenaResultBucketName, os.Getenv("CLUSTER"))),
+				Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.EKSPodMetadataBucketName, os.Getenv("CLUSTER"))),
 				InputFormat:  aws.String("org.apache.hadoop.mapred.TextInputFormat"),
 				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"),
 				SerdeInfo: &gluetypes.SerDeInfo{

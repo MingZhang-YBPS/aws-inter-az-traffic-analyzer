@@ -183,7 +183,7 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 		},
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &job, func() error {
+	_, err = controllerutil.CreateOrPatch(ctx, r.Client, &job, func() error {
 		job.Spec = batchv1.JobSpec{
 			BackoffLimit:          ptr.Int32(3),
 			ActiveDeadlineSeconds: ptr.Int64(60 * 60), // timeout per job
