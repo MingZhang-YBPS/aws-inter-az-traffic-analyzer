@@ -4,9 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/service/athena/types"
-
-	"github.com/aws/smithy-go/logging"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/klog/v2"
 	"os"
@@ -15,11 +12,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/athena"
+	"github.com/aws/aws-sdk-go-v2/service/athena/types"
 	"github.com/aws/aws-sdk-go-v2/service/glue"
 	gluetypes "github.com/aws/aws-sdk-go-v2/service/glue/types"
+	"github.com/aws/smithy-go/logging"
 
 	"github.com/MingZhang-YBPS/aws-inter-az-traffic-analyzer/internal/util"
 )
+
+var podMetaTable = "podmeta"
+var flowTable = "flow"
+var resultTable = "result"
 
 func main() {
 	ctx := context.Background()
@@ -39,9 +42,6 @@ func main() {
 	glueClient := glue.NewFromConfig(cfg)
 	//outputLocation := "s3://" + util.AthenaResultBucketName
 	database := os.Getenv("JOB_NAME")
-	podMetaTable := "podmeta"
-	flowTable := "flow"
-	resultTable := "result"
 
 	_, err = glueClient.CreateDatabase(ctx, &glue.CreateDatabaseInput{
 		DatabaseInput: &gluetypes.DatabaseInput{
@@ -77,9 +77,9 @@ func main() {
 				InputFormat:  aws.String("org.apache.hadoop.mapred.TextInputFormat"),
 				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"),
 				SerdeInfo: &gluetypes.SerDeInfo{
-					SerializationLibrary: aws.String("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"),
+					SerializationLibrary: aws.String("org.apache.hadoop.hive.serde2.OpenCSVSerde"),
 					Parameters: map[string]string{
-						"field.delim":            ",", // CSV 分隔符
+						"separatorChar":          ",", // CSV 分隔符
 						"skip.header.line.count": "1", // 跳过第一行表头（可选）
 					},
 				},
@@ -121,6 +121,9 @@ func main() {
 				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
 				SerdeInfo: &gluetypes.SerDeInfo{
 					SerializationLibrary: aws.String("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"),
+					Parameters: map[string]string{
+						"serialization.format": "1",
+					},
 				},
 			},
 			TableType: aws.String("EXTERNAL_TABLE"),
@@ -156,6 +159,9 @@ func main() {
 				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
 				SerdeInfo: &gluetypes.SerDeInfo{
 					SerializationLibrary: aws.String("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"),
+					Parameters: map[string]string{
+						"serialization.format": "1",
+					},
 				},
 			},
 			TableType: aws.String("EXTERNAL_TABLE"),
@@ -175,6 +181,7 @@ func main() {
 	} else {
 		klog.Infof("Table %s created.", resultTable)
 	}
+
 }
 
 func runQuery(ctx context.Context, client *athena.Client, query string, outputLocation string) string {

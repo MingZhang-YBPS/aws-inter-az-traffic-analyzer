@@ -65,7 +65,7 @@ func (r *AnalyzerJobWatcherReconciler) Reconcile(ctx context.Context, req ctrl.R
 }
 
 func (r *AnalyzerJobWatcherReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// 仅监听目标命名空间
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&batchv1.Job{}).
 		WithEventFilter(predicate.Funcs{
