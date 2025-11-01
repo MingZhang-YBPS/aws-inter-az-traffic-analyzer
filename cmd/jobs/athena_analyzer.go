@@ -186,7 +186,7 @@ func main() {
 
 	// TODO: write query result location to job annotation
 	athenaClient := athena.NewFromConfig(cfg)
-	outputLocation := "s3://" + util.AthenaResultBucketName + "/" + os.Getenv("JOB_NAME")
+	outputLocation := "s3://" + util.AthenaResultBucketName + "/" + os.Getenv("JOB_NAME") + "/"
 	query := `
 INSERT INTO result
 WITH
@@ -233,7 +233,7 @@ WHERE srcpodapp!='<none>' AND dstpodapp!='<none>'
 GROUP BY date_trunc('MINUTE', from_unixtime(start)), CONCAT(srcpodapp, ' -> ', dstpodapp)
 ORDER BY time, total_bytes DESC
 `
-	_, resultLocation := runQuery(ctx, athenaClient, query, outputLocation)
+	_, resultLocation := runQuery(ctx, athenaClient, database, query, outputLocation)
 	if len(resultLocation) > 0 {
 		config, err := rest.InClusterConfig()
 		if err != nil {
@@ -257,11 +257,14 @@ ORDER BY time, total_bytes DESC
 	}
 }
 
-func runQuery(ctx context.Context, client *athena.Client, query string, outputLocation string) (queryID string, resultLocation string) {
+func runQuery(ctx context.Context, client *athena.Client, database string, query string, outputLocation string) (queryID string, resultLocation string) {
 	start, err := client.StartQueryExecution(ctx, &athena.StartQueryExecutionInput{
 		QueryString: aws.String(query),
 		ResultConfiguration: &types.ResultConfiguration{
 			OutputLocation: aws.String(outputLocation),
+		},
+		QueryExecutionContext: &types.QueryExecutionContext{
+			Database: aws.String(database), // Athena 中的数据库
 		},
 	})
 	if err != nil {
@@ -291,7 +294,7 @@ func runQuery(ctx context.Context, client *athena.Client, query string, outputLo
 				}
 				break
 			} else if state == "FAILED" || state == "CANCELLED" {
-				klog.Fatalf("query failed or cancelled: %s", *statusResp.QueryExecution.Status.StateChangeReason)
+				klog.Fatalf("query failed or cancelled: %+v", statusResp.QueryExecution.Status.StateChangeReason)
 			}
 		}
 
