@@ -210,5 +210,7 @@ func runQuery(ctx context.Context, client *athena.Client, query string, outputLo
 		time.Sleep(2 * time.Second)
 	}
 
+	// TODO: write query result location to job annotation
+
 	return queryID
 }

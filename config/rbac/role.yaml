@@ -22,6 +22,8 @@ rules:
   resources:
   - clusterrolebindings
   - clusterroles
+  - rolebindings
+  - roles
   verbs:
   - '*'
 - apiGroups:

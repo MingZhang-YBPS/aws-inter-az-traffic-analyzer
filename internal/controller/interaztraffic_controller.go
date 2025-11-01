@@ -60,6 +60,8 @@ const finalizer = "report.k8s.aws/finalizer"
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts,verbs=*
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,verbs=*
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=*
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles,verbs=*
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=rolebindings,verbs=*
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -178,10 +180,60 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 		return "", err
 	}
 
+	role := rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "analyzer",
+			Namespace: resourceName.Namespace,
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"batch"},
+				Resources: []string{"jobs"},
+				Verbs:     []string{"*"},
+			},
+		},
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &role, func() error {
+		return nil
+	})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
+	binding := rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "analyzer",
+			Namespace: resourceName.Namespace,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      sa.Name,
+				Namespace: sa.Namespace,
+			},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "Role",
+			Name:     role.Name,
+		},
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, &binding, func() error {
+		return nil
+	})
+	if err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
 	job := batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName.Name,
 			Namespace: resourceName.Namespace,
+			Labels: map[string]string{
+				"app": util.AnalyzerJobLabel,
+			},
 		},
 	}
 
