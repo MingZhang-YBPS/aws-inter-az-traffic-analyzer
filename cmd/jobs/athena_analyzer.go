@@ -5,9 +5,13 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/klog/v2"
 	"os"
 	"time"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/klog/v2"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -38,9 +42,7 @@ func main() {
 		klog.Fatalf("failed to load AWS config: %v", err)
 	}
 
-	// athenaClient := athena.NewFromConfig(cfg)
 	glueClient := glue.NewFromConfig(cfg)
-	//outputLocation := "s3://" + util.AthenaResultBucketName
 	database := os.Getenv("JOB_NAME")
 
 	_, err = glueClient.CreateDatabase(ctx, &glue.CreateDatabaseInput{
@@ -182,9 +184,80 @@ func main() {
 		klog.Infof("Table %s created.", resultTable)
 	}
 
+	// TODO: write query result location to job annotation
+	athenaClient := athena.NewFromConfig(cfg)
+	outputLocation := "s3://" + util.AthenaResultBucketName + "/" + os.Getenv("JOB_NAME")
+	query := `
+INSERT INTO result
+WITH
+ip_addresses_and_az_mapping AS (
+SELECT DISTINCT pkt_srcaddr as ipaddress, az_id
+FROM flow
+WHERE flow_direction = 'egress'
+),
+egress_flows_of_pods_with_status AS (
+SELECT
+podmeta.name as srcpodname,
+podmeta.app as srcpodapp,
+pkt_srcaddr as srcaddr,
+pkt_dstaddr as dstaddr,
+flow.az_id as srcazid,
+bytes, 
+start
+FROM flow
+INNER JOIN podmeta ON flow.pkt_srcaddr = podmeta.ip
+WHERE flow_direction = 'egress'
+),
+
+cross_az_traffic_by_pod as (
+SELECT
+srcaddr,
+srcpodname,
+srcpodapp,
+dstaddr,
+podmeta.name as dstpodname,
+podmeta.app as dstpodapp,
+srcazid,
+ip_addresses_and_az_mapping.az_id as dstazid,
+bytes,
+start
+FROM egress_flows_of_pods_with_status
+INNER JOIN podmeta ON dstaddr = podmeta.ip
+LEFT JOIN ip_addresses_and_az_mapping ON dstaddr = ipaddress
+WHERE ip_addresses_and_az_mapping.az_id != srcazid
+)
+
+SELECT date_trunc('MINUTE', from_unixtime(start)) AS time, CONCAT(srcpodapp, ' -> ', dstpodapp) as inter_az_traffic, sum(bytes) as total_bytes
+FROM cross_az_traffic_by_pod
+WHERE srcpodapp!='<none>' AND dstpodapp!='<none>'
+GROUP BY date_trunc('MINUTE', from_unixtime(start)), CONCAT(srcpodapp, ' -> ', dstpodapp)
+ORDER BY time, total_bytes DESC
+`
+	_, resultLocation := runQuery(ctx, athenaClient, query, outputLocation)
+	if len(resultLocation) > 0 {
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			klog.Fatalf("Error loading in-cluster config: %v", err)
+		}
+
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			klog.Fatalf("Failed to create clientset: %v", err)
+		}
+
+		job, err := clientset.BatchV1().Jobs(os.Getenv("MY_POD_NAMESPACE")).Get(ctx, os.Getenv("JOB_NAME"), metav1.GetOptions{})
+		if err != nil {
+			klog.Fatalf("Failed to get job: %v", err)
+		}
+		job.Annotations[util.AnalyzerReportLocationAnnotation] = resultLocation
+		_, err = clientset.BatchV1().Jobs(os.Getenv("MY_POD_NAMESPACE")).Update(ctx, job, metav1.UpdateOptions{})
+		if err != nil {
+			klog.Fatalf("Failed to update job: %v", err)
+		}
+	}
 }
 
-func runQuery(ctx context.Context, client *athena.Client, query string, outputLocation string) string {
+func runQuery(ctx context.Context, client *athena.Client, query string, outputLocation string) (queryID string, resultLocation string) {
 	start, err := client.StartQueryExecution(ctx, &athena.StartQueryExecutionInput{
 		QueryString: aws.String(query),
 		ResultConfiguration: &types.ResultConfiguration{
@@ -195,9 +268,10 @@ func runQuery(ctx context.Context, client *athena.Client, query string, outputLo
 		klog.Fatalf("failed to start query: %v", err)
 	}
 
-	queryID := aws.ToString(start.QueryExecutionId)
+	queryID = aws.ToString(start.QueryExecutionId)
 	klog.Infof("Started query: %s", queryID)
 
+	// for loop till job is cancelled by k8s ActiveDeadlineSeconds
 	for {
 		statusResp, err := client.GetQueryExecution(ctx, &athena.GetQueryExecutionInput{
 			QueryExecutionId: aws.String(queryID),
@@ -206,18 +280,23 @@ func runQuery(ctx context.Context, client *athena.Client, query string, outputLo
 			klog.Fatalf("failed to get query status: %v", err)
 		}
 
-		state := string(statusResp.QueryExecution.Status.State)
-		if state == "SUCCEEDED" {
-			klog.Infof("Query succeeded")
-			break
-		} else if state == "FAILED" || state == "CANCELLED" {
-			klog.Fatalf("query failed or cancelled: %v", statusResp.QueryExecution.Status.StateChangeReason)
+		if statusResp.QueryExecution != nil &&
+			statusResp.QueryExecution.Status != nil {
+			state := string(statusResp.QueryExecution.Status.State)
+			if state == "SUCCEEDED" {
+				klog.Infof("Query succeeded")
+				if statusResp.QueryExecution.ResultConfiguration != nil &&
+					statusResp.QueryExecution.ResultConfiguration.OutputLocation != nil {
+					resultLocation = *statusResp.QueryExecution.ResultConfiguration.OutputLocation
+				}
+				break
+			} else if state == "FAILED" || state == "CANCELLED" {
+				klog.Fatalf("query failed or cancelled: %v", statusResp.QueryExecution.Status.StateChangeReason)
+			}
 		}
 
 		time.Sleep(2 * time.Second)
 	}
 
-	// TODO: write query result location to job annotation
-
-	return queryID
+	return
 }

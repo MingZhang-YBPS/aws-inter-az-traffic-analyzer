@@ -256,6 +256,10 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 								ImagePullPolicy: corev1.PullAlways,
 								Env: []corev1.EnvVar{
 									{
+										Name:  "MY_POD_NAMESPACE",
+										Value: resourceName.Namespace,
+									},
+									{
 										Name:  "AWS_REGION",
 										Value: os.Getenv("AWS_REGION"),
 									},
