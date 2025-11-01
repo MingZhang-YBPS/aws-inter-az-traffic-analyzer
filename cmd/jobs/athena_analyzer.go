@@ -291,7 +291,7 @@ func runQuery(ctx context.Context, client *athena.Client, query string, outputLo
 				}
 				break
 			} else if state == "FAILED" || state == "CANCELLED" {
-				klog.Fatalf("query failed or cancelled: %#v", statusResp.QueryExecution.Status.StateChangeReason)
+				klog.Fatalf("query failed or cancelled: %s", *statusResp.QueryExecution.Status.StateChangeReason)
 			}
 		}
 
