@@ -123,7 +123,7 @@ func (r *InterAZTrafficReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	endTo := traffic.Spec.EndTo
 	log.Info("Reconciling VPC", "vpcId", vpcId, "startFrom", startFrom, "endTo", endTo)
 
-	err = util.EnsurePrerequisites(ctx, r.AWSCfg, vpcId)
+	err = util.EnsurePrerequisites(ctx, r.AWSCfg, vpcId, os.Getenv("CLUSTER"), string(traffic.UID))
 	if err != nil {
 		// retry after the duration, avoid request throttled by AWS
 		return ctrl.Result{RequeueAfter: 60 * time.Second}, err
@@ -150,9 +150,11 @@ func (r *InterAZTrafficReconciler) createOrUpdateJobs(ctx context.Context, traff
 	if _, err := r.createOrUpdatePodMetadataCronjob(ctx, traffic); err != nil {
 		return err
 	}
+	klog.Info("Creating or updating pod meta extractor job successfully")
 	if _, err := r.createOrUpdateAnalyzeJob(ctx, traffic); err != nil {
 		return err
 	}
+	klog.Info("Creating or updating analyzer job successfully")
 	return nil
 }
 

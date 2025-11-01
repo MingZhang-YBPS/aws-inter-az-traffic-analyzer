@@ -16,18 +16,18 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func EnsurePrerequisites(ctx context.Context, cfg aws.Config, vpcId string) error {
+func EnsurePrerequisites(ctx context.Context, cfg aws.Config, vpcId string, cluster string, interazTrafficId string) error {
 	_, err := ensureVPCFlowLog(ctx, cfg, vpcId)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	err = ensurePodMetadataBucket(ctx, cfg, vpcId)
+	err = ensurePodMetadataBucket(ctx, cfg, cluster)
 	if err != nil {
 		klog.Error(err)
 		return err
 	}
-	err = ensureAthenaResultBucket(ctx, cfg, vpcId)
+	err = ensureAthenaResultBucket(ctx, cfg, interazTrafficId)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -183,7 +183,7 @@ func ensureS3Bucket(ctx context.Context, s3Client *s3.Client, bucketName string,
 	return nil
 }
 
-func ensureAthenaResultBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
+func ensureAthenaResultBucket(ctx context.Context, cfg aws.Config, interazTrafficId string) error {
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.Region = os.Getenv("AWS_REGION")
 	})
@@ -191,16 +191,24 @@ func ensureAthenaResultBucket(ctx context.Context, cfg aws.Config, vpcId string)
 	if err != nil {
 		return fmt.Errorf("failed to create s3 bucket %q: %w", AthenaResultBucketName, err)
 	}
+	err = PutDirInS3Bucket(ctx, cfg, AthenaResultBucketName, interazTrafficId+"/")
+	if err != nil {
+		return fmt.Errorf("failed to create dir in s3 bucket %q: %w", AthenaResultBucketName, err)
+	}
 	return nil
 }
 
-func ensurePodMetadataBucket(ctx context.Context, cfg aws.Config, vpcId string) error {
+func ensurePodMetadataBucket(ctx context.Context, cfg aws.Config, cluster string) error {
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.Region = os.Getenv("AWS_REGION")
 	})
 	err := ensureS3Bucket(ctx, client, EKSPodMetadataBucketName, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create s3 bucket %q: %w", EKSPodMetadataBucketName, err)
+	}
+	err = PutDirInS3Bucket(ctx, cfg, EKSPodMetadataBucketName, cluster+"/")
+	if err != nil {
+		return fmt.Errorf("failed to create dir in s3 bucket %q: %w", EKSPodMetadataBucketName, err)
 	}
 	return nil
 }
