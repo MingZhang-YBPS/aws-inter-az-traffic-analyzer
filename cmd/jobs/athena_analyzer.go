@@ -180,7 +180,7 @@ func main() {
 			Name: aws.String(resultTable),
 			StorageDescriptor: &gluetypes.StorageDescriptor{
 				Columns: []gluetypes.Column{
-					{Name: aws.String("timestamp"), Type: aws.String("timestamp")},
+					// {Name: aws.String("timestamp"), Type: aws.String("timestamp")},
 					{Name: aws.String("cross_az_traffic"), Type: aws.String("string")},
 					{Name: aws.String("bytes_transfered"), Type: aws.String("string")},
 				},
