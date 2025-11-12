@@ -116,6 +116,7 @@ func main() {
 					{Name: aws.String("pkt_srcaddr"), Type: aws.String("string")},
 					{Name: aws.String("pkt_dstaddr"), Type: aws.String("string")},
 					{Name: aws.String("start"), Type: aws.String("bigint")},
+					{Name: aws.String("end"), Type: aws.String("bigint")},
 					{Name: aws.String("bytes"), Type: aws.String("bigint")},
 				},
 				Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.VPCFlowLogBucketName, os.Getenv("VPC_ID"))),
