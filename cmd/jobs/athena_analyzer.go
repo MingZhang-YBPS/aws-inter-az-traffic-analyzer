@@ -239,10 +239,9 @@ JOIN podmeta srcpod ON f.pkt_srcaddr = srcpod.ip
 JOIN podmeta dstpod ON f.pkt_dstaddr = dstpod.ip
 WHERE srcpod.app != '<none>'
   AND dstpod.app != '<none>'
-  -- AND srcpod.az != dstpod.az
-  AND CAST(dstpod.az AS VARCHAR) != f.srcazid
+  AND CAST(srcpod.az AS VARCHAR) != CAST(dstpod.az AS VARCHAR)
 GROUP BY CONCAT(srcpod.app, ' -> ', dstpod.app)
-ORDER BY CAST(SUM(f.total_bytes) AS VARCHAR) DESC;
+ORDER BY SUM(f.total_bytes) DESC;
 
 `
 	/*	query := `
