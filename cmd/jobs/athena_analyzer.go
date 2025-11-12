@@ -312,7 +312,8 @@ ORDER BY CAST(SUM(f.total_bytes) AS VARCHAR) DESC;
 		if job.Annotations == nil {
 			job.Annotations = make(map[string]string)
 		}
-		job.Annotations[util.AnalyzerReportLocationAnnotation] = resultLocation
+		// 最终地址其实还在manifests.csv的文件内容里面
+		job.Annotations[util.AnalyzerReportLocationAnnotation] = resultLocation + "-manifest.csv"
 		_, err = clientset.BatchV1().Jobs(os.Getenv("MY_POD_NAMESPACE")).Update(ctx, job, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Fatalf("Failed to update job: %v", err)
