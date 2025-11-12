@@ -228,6 +228,8 @@ WITH egress_flow_summary AS (
     SUM(bytes) AS total_bytes
   FROM flow
   WHERE flow_direction = 'egress'
+    AND from_unixtime("start") >= from_iso8601_timestamp('%s')
+    AND from_unixtime("end")   <= from_iso8601_timestamp('%s')
   GROUP BY pkt_srcaddr, pkt_dstaddr, CAST(az_id AS VARCHAR)
 )
 
@@ -292,7 +294,8 @@ ORDER BY SUM(f.total_bytes) DESC;
 		`
 	*/
 
-	_, resultLocation := runQuery(ctx, athenaClient, database, query, outputLocation)
+	_, resultLocation := runQuery(ctx, athenaClient, database,
+		fmt.Sprintf(query, os.Getenv("START_FROM"), os.Getenv("END_TO")), outputLocation)
 	if len(resultLocation) > 0 {
 		config, err := rest.InClusterConfig()
 		if err != nil {

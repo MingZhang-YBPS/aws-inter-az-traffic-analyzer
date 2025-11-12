@@ -290,11 +290,21 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 					Name:  "START_FROM",
 					Value: traffic.Spec.StartFrom.Format(time.RFC3339),
 				})
+			} else {
+				job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+					Name:  "START_FROM",
+					Value: time.Unix(0, 0).UTC().Format(time.RFC3339),
+				})
 			}
 			if traffic.Spec.EndTo != nil {
 				job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
 					Name:  "END_TO",
 					Value: traffic.Spec.EndTo.Format(time.RFC3339),
+				})
+			} else {
+				job.Spec.Template.Spec.Containers[0].Env = append(job.Spec.Template.Spec.Containers[0].Env, corev1.EnvVar{
+					Name:  "END_TO",
+					Value: time.Now().Format(time.RFC3339),
 				})
 			}
 		}
