@@ -146,7 +146,34 @@ func main() {
 	} else {
 		klog.Infof("Table %s created.", flowTable)
 	}
-
+	/*
+		_, err = glueClient.CreateTable(ctx, &glue.CreateTableInput{
+			DatabaseName: aws.String(database),
+			TableInput: &gluetypes.TableInput{
+				Name: aws.String(resultTable),
+				StorageDescriptor: &gluetypes.StorageDescriptor{
+					Columns: []gluetypes.Column{
+						{Name: aws.String("timestamp"), Type: aws.String("timestamp")},
+						{Name: aws.String("cross_az_traffic"), Type: aws.String("string")},
+						{Name: aws.String("bytes_transfered"), Type: aws.String("bigint")},
+					},
+					Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.AthenaResultBucketName, os.Getenv("JOB_NAME"))),
+					InputFormat:  aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
+					OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
+					SerdeInfo: &gluetypes.SerDeInfo{
+						SerializationLibrary: aws.String("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"),
+						Parameters: map[string]string{
+							"serialization.format": "1",
+						},
+					},
+				},
+				TableType: aws.String("EXTERNAL_TABLE"),
+				Parameters: map[string]string{
+					"classification": "parquet",
+					"typeOfData":     "file",
+				},
+			},
+		}) */
 	_, err = glueClient.CreateTable(ctx, &glue.CreateTableInput{
 		DatabaseName: aws.String(database),
 		TableInput: &gluetypes.TableInput{
@@ -155,25 +182,28 @@ func main() {
 				Columns: []gluetypes.Column{
 					{Name: aws.String("timestamp"), Type: aws.String("timestamp")},
 					{Name: aws.String("cross_az_traffic"), Type: aws.String("string")},
-					{Name: aws.String("bytes_transfered"), Type: aws.String("bigint")},
+					{Name: aws.String("bytes_transfered"), Type: aws.String("string")},
 				},
 				Location:     aws.String(fmt.Sprintf("s3://%s/%s/", util.AthenaResultBucketName, os.Getenv("JOB_NAME"))),
-				InputFormat:  aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"),
-				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"),
+				InputFormat:  aws.String("org.apache.hadoop.mapred.TextInputFormat"),
+				OutputFormat: aws.String("org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat"),
 				SerdeInfo: &gluetypes.SerDeInfo{
-					SerializationLibrary: aws.String("org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"),
+					SerializationLibrary: aws.String("org.apache.hadoop.hive.serde2.OpenCSVSerde"),
 					Parameters: map[string]string{
-						"serialization.format": "1",
+						"separatorChar":          ",", // CSV 分隔符
+						"skip.header.line.count": "1", // 跳过第一行表头（可选）
 					},
 				},
 			},
 			TableType: aws.String("EXTERNAL_TABLE"),
 			Parameters: map[string]string{
-				"classification": "parquet",
-				"typeOfData":     "file",
+				"classification":  "csv",
+				"compressionType": "none",
+				"typeOfData":      "file",
 			},
 		},
 	})
+
 	if err != nil {
 		var exists *gluetypes.AlreadyExistsException
 		if errors.As(err, &exists) {
@@ -190,50 +220,79 @@ func main() {
 	outputLocation := "s3://" + util.AthenaResultBucketName + "/" + os.Getenv("JOB_NAME") + "/"
 	query := `
 INSERT INTO result
-WITH
-ip_addresses_and_az_mapping AS (
-SELECT DISTINCT pkt_srcaddr as ipaddress, az_id
-FROM flow
-WHERE flow_direction = 'egress'
-),
-egress_flows_of_pods_with_status AS (
-SELECT
-podmeta.name as srcpodname,
-podmeta.app as srcpodapp,
-pkt_srcaddr as srcaddr,
-pkt_dstaddr as dstaddr,
-flow.az_id as srcazid,
-bytes, 
-start
-FROM flow
-INNER JOIN podmeta ON flow.pkt_srcaddr = podmeta.ip
-WHERE flow_direction = 'egress'
-),
-
-cross_az_traffic_by_pod as (
-SELECT
-srcaddr,
-srcpodname,
-srcpodapp,
-dstaddr,
-podmeta.name as dstpodname,
-podmeta.app as dstpodapp,
-srcazid,
-ip_addresses_and_az_mapping.az_id as dstazid,
-bytes,
-start
-FROM egress_flows_of_pods_with_status
-INNER JOIN podmeta ON dstaddr = podmeta.ip
-LEFT JOIN ip_addresses_and_az_mapping ON dstaddr = ipaddress
-WHERE ip_addresses_and_az_mapping.az_id != srcazid
+WITH egress_flow_summary AS (
+  SELECT
+    pkt_srcaddr,
+    pkt_dstaddr,
+    CAST(az_id AS VARCHAR) AS srcazid,
+    SUM(bytes) AS total_bytes
+  FROM flow
+  WHERE flow_direction = 'egress'
+  GROUP BY pkt_srcaddr, pkt_dstaddr, CAST(az_id AS VARCHAR)
 )
 
-SELECT date_trunc('MINUTE', from_unixtime(start)) AS time, CONCAT(srcpodapp, ' -> ', dstpodapp) as inter_az_traffic, sum(bytes) as total_bytes
-FROM cross_az_traffic_by_pod
-WHERE srcpodapp!='<none>' AND dstpodapp!='<none>'
-GROUP BY date_trunc('MINUTE', from_unixtime(start)), CONCAT(srcpodapp, ' -> ', dstpodapp)
-ORDER BY time, total_bytes DESC
+SELECT
+  CONCAT(srcpod.app, ' -> ', dstpod.app) AS cross_az_traffic,
+  CAST(SUM(f.total_bytes) AS VARCHAR) AS bytes_transfered
+FROM egress_flow_summary f
+JOIN podmeta srcpod ON f.pkt_srcaddr = srcpod.ip
+JOIN podmeta dstpod ON f.pkt_dstaddr = dstpod.ip
+WHERE srcpod.app != '<none>'
+  AND dstpod.app != '<none>'
+  -- AND srcpod.az != dstpod.az
+  AND CAST(dstpod.az AS VARCHAR) != f.srcazid
+GROUP BY CONCAT(srcpod.app, ' -> ', dstpod.app)
+ORDER BY CAST(SUM(f.total_bytes) AS VARCHAR) DESC;
+
 `
+	/*	query := `
+		INSERT INTO result
+		WITH
+		ip_addresses_and_az_mapping AS (
+		SELECT DISTINCT pkt_srcaddr as ipaddress, az_id
+		FROM flow
+		WHERE flow_direction = 'egress'
+		),
+		egress_flows_of_pods_with_status AS (
+		SELECT
+		podmeta.name as srcpodname,
+		podmeta.app as srcpodapp,
+		pkt_srcaddr as srcaddr,
+		pkt_dstaddr as dstaddr,
+		flow.az_id as srcazid,
+		bytes,
+		start
+		FROM flow
+		INNER JOIN podmeta ON flow.pkt_srcaddr = podmeta.ip
+		WHERE flow_direction = 'egress'
+		),
+
+		cross_az_traffic_by_pod as (
+		SELECT
+		srcaddr,
+		srcpodname,
+		srcpodapp,
+		dstaddr,
+		podmeta.name as dstpodname,
+		podmeta.app as dstpodapp,
+		srcazid,
+		ip_addresses_and_az_mapping.az_id as dstazid,
+		bytes,
+		start
+		FROM egress_flows_of_pods_with_status
+		INNER JOIN podmeta ON dstaddr = podmeta.ip
+		LEFT JOIN ip_addresses_and_az_mapping ON dstaddr = ipaddress
+		WHERE ip_addresses_and_az_mapping.az_id != srcazid
+		)
+
+		SELECT date_trunc('MINUTE', from_unixtime(start)) AS time, CONCAT(srcpodapp, ' -> ', dstpodapp) as inter_az_traffic, sum(bytes) as total_bytes
+		FROM cross_az_traffic_by_pod
+		WHERE srcpodapp!='<none>' AND dstpodapp!='<none>'
+		GROUP BY date_trunc('MINUTE', from_unixtime(start)), CONCAT(srcpodapp, ' -> ', dstpodapp)
+		ORDER BY time, total_bytes DESC
+		`
+	*/
+
 	_, resultLocation := runQuery(ctx, athenaClient, database, query, outputLocation)
 	if len(resultLocation) > 0 {
 		config, err := rest.InClusterConfig()
