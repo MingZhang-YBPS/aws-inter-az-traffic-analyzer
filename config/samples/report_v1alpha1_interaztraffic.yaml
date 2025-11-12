@@ -8,3 +8,5 @@ metadata:
   namespace : inter-az-traffic-analyzer-system
 spec:
   vpcId: vpc-0c2101f28902f28e7
+  startFrom: "2025-11-12T18:30:00Z"
+  endTo: "2025-11-12T18:40:00Z"
