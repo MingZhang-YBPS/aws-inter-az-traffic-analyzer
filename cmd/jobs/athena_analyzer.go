@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	log "github.com/sirupsen/logrus"
+	"io"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +47,9 @@ func main() {
 	}
 
 	glueClient := glue.NewFromConfig(cfg)
+	s3client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.Region = os.Getenv("AWS_REGION")
+	})
 	database := os.Getenv("JOB_NAME")
 
 	_, err = glueClient.CreateDatabase(ctx, &glue.CreateDatabaseInput{
@@ -316,12 +323,55 @@ ORDER BY SUM(f.total_bytes) DESC;
 			job.Annotations = make(map[string]string)
 		}
 		// 最终地址其实还在manifests.csv的文件内容里面
-		job.Annotations[util.AnalyzerReportLocationAnnotation] = resultLocation + "-manifest.csv"
+		job.Annotations[util.AnalyzerReportLocationAnnotation] = getActualLocFromManifestCSV(
+			ctx,
+			s3client,
+			resultLocation+"-manifest.csv")
 		_, err = clientset.BatchV1().Jobs(os.Getenv("MY_POD_NAMESPACE")).Update(ctx, job, metav1.UpdateOptions{})
 		if err != nil {
 			klog.Fatalf("Failed to update job: %v", err)
 		}
 	}
+}
+
+func getActualLocFromManifestCSV(ctx context.Context, client *s3.Client, manifestLoc string) string {
+	bucket, key, err := parseS3URI(manifestLoc)
+	if err != nil {
+		klog.Errorf("解析S3 URI失败: %v", err)
+		return ""
+	}
+	resp, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		klog.Errorf("获取对象失败: %v", err)
+		return ""
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		klog.Errorf("读取内容失败: %v", err)
+		return ""
+	}
+
+	return string(body)
+}
+
+func parseS3URI(s3uri string) (bucket string, key string, err error) {
+	if !strings.HasPrefix(s3uri, "s3://") {
+		return "", "", fmt.Errorf("无效的S3 URI: %s", s3uri)
+	}
+
+	u, err := url.Parse(s3uri)
+	if err != nil {
+		return "", "", fmt.Errorf("解析S3 URI失败: %w", err)
+	}
+
+	bucket = u.Host
+	key = strings.TrimPrefix(u.Path, "/")
+	return bucket, key, nil
 }
 
 func runQuery(ctx context.Context, client *athena.Client, database string, query string, outputLocation string) (queryID string, resultLocation string) {
