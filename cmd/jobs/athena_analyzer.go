@@ -294,6 +294,7 @@ ORDER BY SUM(f.total_bytes) DESC;
 		`
 	*/
 
+	klog.Infof("startFrom %s, endTo %s", os.Getenv("START_FROM"), os.Getenv("END_TO"))
 	_, resultLocation := runQuery(ctx, athenaClient, database,
 		fmt.Sprintf(query, os.Getenv("START_FROM"), os.Getenv("END_TO")), outputLocation)
 	if len(resultLocation) > 0 {

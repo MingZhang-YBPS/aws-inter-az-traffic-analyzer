@@ -321,6 +321,11 @@ func (r *InterAZTrafficReconciler) createOrUpdateAnalyzeJob(ctx context.Context,
 		return "", err
 	}
 
+	if err = r.Client.Update(ctx, &job); err != nil {
+		klog.Error(err)
+		return "", err
+	}
+
 	return resourceName.Name, err
 }
 
