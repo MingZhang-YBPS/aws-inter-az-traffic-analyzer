@@ -118,18 +118,21 @@ func getNodeAZMapping(nodes *v1.NodeList) map[string]string {
 func getPodInfo(pods *v1.PodList, nodeAZMapping map[string]string) [][]string {
 	var podsInfo [][]string
 	for _, pod := range pods.Items {
-		for _, cond := range pod.Status.Conditions {
-			if cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue {
-				podInfo := []string{
-					string(pod.UID),
-					pod.Name,
-					pod.Status.PodIP,
-					util.GetPodAppName(&pod),
-					pod.CreationTimestamp.Format(time.RFC3339),
-					pod.Spec.NodeName,
-					nodeAZMapping[pod.Spec.NodeName],
+		// 排除所有使用主机IP的pod
+		if pod.Status.PodIP != pod.Status.HostIP {
+			for _, cond := range pod.Status.Conditions {
+				if cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue {
+					podInfo := []string{
+						string(pod.UID),
+						pod.Name,
+						pod.Status.PodIP,
+						util.GetPodAppName(&pod),
+						pod.CreationTimestamp.Format(time.RFC3339),
+						pod.Spec.NodeName,
+						nodeAZMapping[pod.Spec.NodeName],
+					}
+					podsInfo = append(podsInfo, podInfo)
 				}
-				podsInfo = append(podsInfo, podInfo)
 			}
 		}
 	}

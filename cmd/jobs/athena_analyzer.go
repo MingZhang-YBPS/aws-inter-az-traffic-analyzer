@@ -227,28 +227,38 @@ func main() {
 	outputLocation := "s3://" + util.AthenaResultBucketName + "/" + os.Getenv("JOB_NAME") + "/"
 	query := `
 INSERT INTO result
-WITH egress_flow_summary AS (
+WITH 
+egress_flow_summary AS (
   SELECT
     pkt_srcaddr,
     pkt_dstaddr,
-    CAST(az_id AS VARCHAR) AS srcazid,
+    az_id AS srcazid,
     SUM(bytes) AS total_bytes
   FROM flow
   WHERE flow_direction = 'egress'
     AND from_unixtime("start") >= from_iso8601_timestamp('%s')
     AND from_unixtime("end")   <= from_iso8601_timestamp('%s')
-  GROUP BY pkt_srcaddr, pkt_dstaddr, CAST(az_id AS VARCHAR)
+  GROUP BY pkt_srcaddr, pkt_dstaddr, az_id
+),
+podmeta_unique AS (
+  SELECT ip, app, az
+  FROM (
+    SELECT uid, ip, app, az,
+           ROW_NUMBER() OVER (PARTITION BY uid) AS rn
+    FROM podmeta
+  )
+  WHERE rn = 1
 )
 
 SELECT
   CONCAT(srcpod.app, ' -> ', dstpod.app) AS cross_az_traffic,
   CAST(SUM(f.total_bytes) AS VARCHAR) AS bytes_transfered
 FROM egress_flow_summary f
-JOIN podmeta srcpod ON f.pkt_srcaddr = srcpod.ip
-JOIN podmeta dstpod ON f.pkt_dstaddr = dstpod.ip
+JOIN podmeta_unique srcpod ON f.pkt_srcaddr = srcpod.ip
+JOIN podmeta_unique dstpod ON f.pkt_dstaddr = dstpod.ip
 WHERE srcpod.app != '<none>'
   AND dstpod.app != '<none>'
-  AND CAST(srcpod.az AS VARCHAR) != CAST(dstpod.az AS VARCHAR)
+  AND srcpod.az != dstpod.az
 GROUP BY CONCAT(srcpod.app, ' -> ', dstpod.app)
 ORDER BY SUM(f.total_bytes) DESC;
 
