@@ -240,6 +240,7 @@ egress_flow_summary AS (
     AND from_unixtime("end")   <= from_iso8601_timestamp('%s')
   GROUP BY pkt_srcaddr, pkt_dstaddr, az_id
 ),
+--- pod metadata一直在收集，需要去重
 podmeta_unique AS (
   SELECT ip, app, az
   FROM (
@@ -249,7 +250,7 @@ podmeta_unique AS (
   )
   WHERE rn = 1
 )
-
+--- 多个pod属于同一app的，需要合并计算
 SELECT
   CONCAT(srcpod.app, ' -> ', dstpod.app) AS cross_az_traffic,
   CAST(SUM(f.total_bytes) AS VARCHAR) AS bytes_transfered
